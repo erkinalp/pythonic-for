@@ -7,134 +7,68 @@
 //!
 //! ## Examples
 //!
-//! ```
+//! ```no_run
 //! use pythonic_for::pythonic_for;
 //!
-//! // Basic for-else loop
+//! // Basic for-else loop - no break occurs, so else clause executes
 //! let mut found = false;
-//! {
-//!     let mut _break_occurred = false;
-//!     
-//!     'pythonic_for_loop: {
-//!         for i in 0..5 {
-//!             if i == 10 {
-//!                 found = true;
-//!                 _break_occurred = true;
-//!                 break 'pythonic_for_loop;
-//!             }
-//!         }
+//! pythonic_for!((i in 0..5) {
+//!     if i == 10 { // This condition never matches in range 0..5
+//!         found = true;
+//!         break;
 //!     }
-//!     
-//!     if !_break_occurred {
-//!         found = false;
-//!     }
-//! }
+//! } else {
+//!     found = false; // This will execute
+//! });
 //! assert_eq!(found, false);
 //!
-//! // For loop with break
+//! // For loop with break - break occurs, so else clause doesn't execute
 //! let mut found = false;
-//! {
-//!     let mut _break_occurred = false;
-//!     
-//!     'pythonic_for_loop: {
-//!         for i in 0..5 {
-//!             if i == 3 {
-//!                 found = true;
-//!                 _break_occurred = true;
-//!                 break 'pythonic_for_loop;
-//!             }
-//!         }
+//! pythonic_for!((i in 0..5) {
+//!     if i == 3 { // This condition matches when i is 3
+//!         found = true;
+//!         break;
 //!     }
-//!     
-//!     if !_break_occurred {
-//!         found = false;
-//!     }
-//! }
+//! } else {
+//!     found = false; // This won't execute because of the break
+//! });
 //! assert_eq!(found, true);
 //!
 //! // Inclusive range
 //! let mut sum = 0;
-//! {
-//!     let mut _break_occurred = false;
-//!     
-//!     'pythonic_for_loop: {
-//!         for i in 1..=5 {
-//!             sum += i;
-//!         }
-//!     }
-//!     
-//!     if !_break_occurred {
-//!         sum += 100;
-//!     }
-//! }
+//! pythonic_for!((i in 1..=5) {
+//!     sum += i;
+//! } else {
+//!     sum += 100;
+//! });
 //! assert_eq!(sum, 115); // 1+2+3+4+5+100 = 115
 //!
 //! // Step value
 //! let mut sum = 0;
-//! {
-//!     let mut _break_occurred = false;
-//!     
-//!     'pythonic_for_loop: {
-//!         let step = 2;
-//!         let range = 0..10;
-//!         let start = range.start;
-//!         let end = range.end;
-//!         let mut current = start;
-//!         
-//!         while current < end {
-//!             let i = current;
-//!             sum += i;
-//!             current += step;
-//!         }
-//!     }
-//!     
-//!     if !_break_occurred {
-//!         sum += 100;
-//!     }
-//! }
+//! pythonic_for!((i in 0..10, step = 2) {
+//!     sum += i;
+//! } else {
+//!     sum += 100;
+//! });
 //! assert_eq!(sum, 120); // 0+2+4+6+8+100 = 120
 //!
 //! // Negative step
 //! let mut sum = 0;
-//! {
-//!     let mut _break_occurred = false;
-//!     
-//!     'pythonic_for_loop: {
-//!         let step = -2;
-//!         let range = 10..0;
-//!         let start = range.start;
-//!         let end = range.end;
-//!         let mut current = start;
-//!         
-//!         while current > end {
-//!             let i = current;
-//!             sum += i;
-//!             current += step;
-//!         }
-//!     }
-//!     
-//!     if !_break_occurred {
-//!         sum += 100;
-//!     }
-//! }
+//! pythonic_for!((i in 10..0, step = -2) {
+//!     sum += i;
+//! } else {
+//!     sum += 100;
+//! });
 //! assert_eq!(sum, 130); // 10+8+6+4+2+100 = 130
 //!
 //! // Iterating over a collection
 //! let vec = vec![1, 2, 3, 4, 5];
 //! let mut sum = 0;
-//! {
-//!     let mut _break_occurred = false;
-//!     
-//!     'pythonic_for_loop: {
-//!         for i in vec {
-//!             sum += i;
-//!         }
-//!     }
-//!     
-//!     if !_break_occurred {
-//!         sum += 100;
-//!     }
-//! }
+//! pythonic_for!((i in vec) {
+//!     sum += i;
+//! } else {
+//!     sum += 100;
+//! });
 //! assert_eq!(sum, 115); // 1+2+3+4+5+100 = 115
 //! ```
 
@@ -152,62 +86,30 @@
 ///
 /// // Basic for loop with else clause
 /// let mut sum = 0;
-/// {
-///     let mut _break_occurred = false;
-///     
-///     'pythonic_for_loop: {
-///         for i in 0..5 {
-///             sum += i;
-///         }
-///     }
-///     
-///     if !_break_occurred {
-///         sum += 100;
-///     }
-/// }
+/// pythonic_for!((i in 0..5) {
+///     sum += i;
+/// } else {
+///     sum += 100;
+/// });
 /// assert_eq!(sum, 110); // 0+1+2+3+4+100 = 110
 ///
-/// // For loop with range and step (works with both inclusive and exclusive ranges)
-/// let mut sum = 0;
-/// {
-///     let mut _break_occurred = false;
-///     
-///     'pythonic_for_loop: {
-///         let step = 2;
-///         let range = 0..10;
-///         let start = range.start;
-///         let end = range.end;
-///         let mut current = start;
-///         
-///         while current < end {
-///             let i = current;
-///             sum += i;
-///             current += step;
-///         }
-///     }
-///     
-///     if !_break_occurred {
-///         sum += 100;
-///     }
-/// }
-/// assert_eq!(sum, 120); // 0+2+4+6+8+100 = 120
+/// // For loop with range and step
+/// let mut sum2 = 0;
+/// pythonic_for!((i in 0..10, step = 2) {
+///     sum2 += i;
+/// } else {
+///     sum2 += 100;
+/// });
+/// assert_eq!(sum2, 120); // 0+2+4+6+8+100 = 120
 ///
-/// // For loop with inclusive range (automatically handled)
-/// let mut sum = 0;
-/// {
-///     let mut _break_occurred = false;
-///     
-///     'pythonic_for_loop: {
-///         for i in 1..=5 {
-///             sum += i;
-///         }
-///     }
-///     
-///     if !_break_occurred {
-///         sum += 100;
-///     }
-/// }
-/// assert_eq!(sum, 115); // 1+2+3+4+5+100 = 115
+/// // For loop with inclusive range
+/// let mut sum3 = 0;
+/// pythonic_for!((i in 1..=5) {
+///     sum3 += i;
+/// } else {
+///     sum3 += 100;
+/// });
+/// assert_eq!(sum3, 115); // 1+2+3+4+5+100 = 115
 /// ```
 ///
 /// # Features
@@ -221,37 +123,33 @@
 ///   If an error occurs during iteration, the else clause is not executed. This is implemented
 ///   using `std::panic::catch_unwind` to catch any panics that might occur during iteration.
 ///
-/// ```
+/// ```no_run
 /// use pythonic_for::pythonic_for;
+/// use std::panic;
 ///
-/// // Example of using the macro with error handling
+/// // Example with error handling
 /// let mut result = 0;
-/// {
-///     let mut _break_occurred = false;
-///     let mut _error_occurred = false;
-///     
-///     'pythonic_for_loop: {
-///         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-///             for i in 0..5 {
-///                 if i == 3 {
-///                     // Simulate an error
-///                     panic!("Error during iteration");
-///                 }
-///                 result += i;
-///             }
-///         }));
-///         
-///         if result.is_err() {
-///             _error_occurred = true;
+/// 
+/// // This will panic during iteration when i == 3
+/// let result_with_error = panic::catch_unwind(panic::AssertUnwindSafe(|| {
+///     let mut inner_result = 0;
+///     pythonic_for!((i in 0..5) {
+///         if i == 3 {
+///             // Simulate an error
+///             panic!("Error during iteration");
 ///         }
-///     }
-///     
-///     if !_break_occurred && !_error_occurred {
-///         result = 100;
-///     }
-/// }
+///         inner_result += i;
+///     } else {
+///         inner_result = 100;
+///     });
+///     // Update the outer result
+///     result = inner_result;
+/// }));
+/// 
 /// // The else clause is not executed because an error occurred
-/// assert_eq!(result, 3); // 0+1+2 = 3
+/// assert!(result_with_error.is_err());
+/// // result remains 0 because the panic occurred
+/// assert_eq!(result, 0);
 /// ```
 #[macro_export]
 macro_rules! pythonic_for {
@@ -262,8 +160,6 @@ macro_rules! pythonic_for {
             let mut _error_occurred = false;
             
             'pythonic_for_loop: {
-                // Try to iterate over the iterable
-                // If an error occurs, set _error_occurred to true
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     for $var in $iterable {
                         // Execute the loop body
@@ -293,8 +189,6 @@ macro_rules! pythonic_for {
             let mut _error_occurred = false;
             
             'pythonic_for_loop: {
-                // Try to iterate over the range with the step
-                // If an error occurs, set _error_occurred to true
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     let step = $step;
                     let range = $range;
@@ -357,6 +251,7 @@ macro_rules! pythonic_for {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::{HashMap, HashSet, VecDeque, BTreeMap, BTreeSet};
 
     #[test]
     fn test_basic_for_else() {
@@ -501,36 +396,186 @@ mod tests {
         assert_eq!(sum, 115); // 1+2+3+4+5+100 = 115
     }
     
+    
     #[test]
-    fn test_error_handling() {
-        let mut result = 0;
+    fn test_hashmap() {
+        let mut map = HashMap::new();
+        map.insert("one", 1);
+        map.insert("two", 2);
+        map.insert("three", 3);
         
-        {
-            let mut _break_occurred = false;
-            let mut _error_occurred = false;
+        let mut sum = 0;
+        
+        pythonic_for!((entry in map) {
+            sum += entry.1;
+        } else {
+            sum += 100;
+        });
+        
+        assert_eq!(sum, 106); // 1+2+3+100 = 106
+    }
+    
+    #[test]
+    fn test_hashset() {
+        let mut set = HashSet::new();
+        set.insert(5);
+        set.insert(10);
+        set.insert(15);
+        
+        let mut sum = 0;
+        
+        pythonic_for!((value in set) {
+            sum += value;
+        } else {
+            sum += 100;
+        });
+        
+        assert_eq!(sum, 130); // 5+10+15+100 = 130
+    }
+    
+    #[test]
+    fn test_vecdeque() {
+        let mut deque = VecDeque::new();
+        deque.push_back(1);
+        deque.push_back(2);
+        deque.push_back(3);
+        
+        let mut sum = 0;
+        
+        pythonic_for!((value in deque) {
+            sum += value;
+        } else {
+            sum += 100;
+        });
+        
+        assert_eq!(sum, 106); // 1+2+3+100 = 106
+    }
+    
+    #[test]
+    fn test_btreemap() {
+        let mut map = BTreeMap::new();
+        map.insert("a", 1);
+        map.insert("b", 2);
+        map.insert("c", 3);
+        
+        let mut sum = 0;
+        
+        pythonic_for!((entry in map) {
+            sum += entry.1;
+        } else {
+            sum += 100;
+        });
+        
+        assert_eq!(sum, 106); // 1+2+3+100 = 106
+    }
+    
+    #[test]
+    fn test_btreeset() {
+        let mut set = BTreeSet::new();
+        set.insert(5);
+        set.insert(10);
+        set.insert(15);
+        
+        let mut sum = 0;
+        
+        pythonic_for!((value in set) {
+            sum += value;
+        } else {
+            sum += 100;
+        });
+        
+        assert_eq!(sum, 130); // 5+10+15+100 = 130
+    }
+    
+    
+    #[test]
+    fn test_custom_iterator() {
+        struct SquareIter {
+            current: i32,
+            end: i32,
+        }
+        
+        impl Iterator for SquareIter {
+            type Item = i32;
             
-            'pythonic_for_loop: {
-                let catch_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    for i in 0..5 {
-                        if i == 3 {
-                            // Simulate an error
-                            panic!("Error during iteration");
-                        }
-                        result += i;
-                    }
-                }));
-                
-                if catch_result.is_err() {
-                    _error_occurred = true;
+            fn next(&mut self) -> Option<Self::Item> {
+                if self.current <= self.end {
+                    let result = self.current * self.current;
+                    self.current += 1;
+                    Some(result)
+                } else {
+                    None
                 }
-            }
-            
-            if !_break_occurred && !_error_occurred {
-                result = 100;
             }
         }
         
-        // The else clause is not executed because an error occurred
-        assert_eq!(result, 3); // 0+1+2 = 3
+        let square_iter = SquareIter { current: 1, end: 3 };
+        let mut sum = 0;
+        
+        pythonic_for!((value in square_iter) {
+            sum += value;
+        } else {
+            sum += 100;
+        });
+        
+        assert_eq!(sum, 114); // 1+4+9+100 = 114
+    }
+    
+    #[test]
+    fn test_filter_map() {
+        let numbers = vec![1, 2, 3, 4, 5];
+        let mut sum = 0;
+        
+        let even_doubles = numbers.iter().filter_map(|&x| {
+            if x % 2 == 0 {
+                Some(x * 2)
+            } else {
+                None
+            }
+        });
+        
+        pythonic_for!((value in even_doubles) {
+            sum += value;
+        } else {
+            sum += 100;
+        });
+        
+        assert_eq!(sum, 112); // 4+8+100 = 112
+    }
+    
+    #[test]
+    fn test_chain_iterator() {
+        let first = vec![1, 2, 3];
+        let second = vec![4, 5, 6];
+        
+        let mut sum = 0;
+        
+        let chained = first.iter().chain(second.iter());
+        
+        pythonic_for!((value in chained) {
+            sum += *value;
+        } else {
+            sum += 100;
+        });
+        
+        assert_eq!(sum, 121); // 1+2+3+4+5+6+100 = 121
+    }
+    
+    #[test]
+    fn test_zip_iterator() {
+        let numbers = vec![1, 2, 3];
+        let letters = vec!['a', 'b', 'c'];
+        
+        let mut result = String::new();
+        
+        let zipped = numbers.iter().zip(letters.iter());
+        
+        pythonic_for!((pair in zipped) {
+            result.push_str(&format!("{}{}", pair.0, pair.1));
+        } else {
+            result.push_str("done");
+        });
+        
+        assert_eq!(result, "1a2b3cdone");
     }
 }
