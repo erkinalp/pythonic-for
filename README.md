@@ -4,11 +4,11 @@
 [![Documentation](https://docs.rs/pythonic-for/badge.svg)](https://docs.rs/pythonic-for)
 [![License](https://img.shields.io/crates/l/pythonic-for.svg)](https://github.com/erkinalp/pythonic-for/blob/main/LICENSE-MIT)
 
-A Rust crate that provides a Python-style `for` loop with an `else` clause.
+A Rust crate that provides a Python-style `for` loop with an optional `else` clause.
 
 ## Features
 
-- **Else Clause**: The else clause is executed if the loop completes without a break or an error, similar to Python's for-else construct.
+- **Optional Else Clause**: The else clause is executed if the loop completes without a break or an error, similar to Python's for-else construct. The else clause is optional.
 - **Inclusive/Exclusive Ranges**: Supports both inclusive (`..=`) and exclusive (`..`) ranges.
 - **Step Values**: Allows specifying a step value for iteration, including negative steps for reverse iteration.
 - **Error Handling**: Handles Rust errors similarly to how Python handles exceptions in for loops. If an error occurs during iteration, the else clause is not executed.
@@ -24,6 +24,28 @@ pythonic-for = "0.1.0"
 ```
 
 ## Usage
+
+### Basic Usage Without Else Clause
+
+```rust
+use pythonic_for::pythonic_for;
+
+// Simple for loop without else clause
+let mut sum = 0;
+pythonic_for!((i in 0..5) {
+    sum += i;
+});
+assert_eq!(sum, 10); // 0+1+2+3+4 = 10
+
+// For loop with step value without else clause
+let mut sum = 0;
+pythonic_for!((i in 0..10, step = 2) {
+    sum += i;
+});
+assert_eq!(sum, 20); // 0+2+4+6+8 = 20
+```
+
+### Usage With Else Clause
 
 ```rust
 use pythonic_for::pythonic_for;

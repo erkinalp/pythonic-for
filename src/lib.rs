@@ -1,8 +1,8 @@
 //! # Pythonic For
 //!
-//! A Rust crate that provides a Python-style `for` loop with an `else` clause.
+//! A Rust crate that provides a Python-style `for` loop with an optional `else` clause.
 //!
-//! This crate allows users to iterate over a sequence and execute an `else` clause
+//! This crate allows users to iterate over a sequence and optionally execute an `else` clause
 //! if no `break` is called and no error is returned during iteration.
 //!
 //! ## Examples
@@ -21,6 +21,13 @@
 //!     found = false; // This will execute
 //! });
 //! assert_eq!(found, false);
+//!
+//! // For loop without else clause
+//! let mut sum = 0;
+//! pythonic_for!((i in 0..5) {
+//!     sum += i;
+//! });
+//! assert_eq!(sum, 10); // 0+1+2+3+4 = 10
 //!
 //! // For loop with break - break occurs, so else clause doesn't execute
 //! let mut found = false;
@@ -72,9 +79,9 @@
 //! assert_eq!(sum, 115); // 1+2+3+4+5+100 = 115
 //! ```
 
-/// Macro that implements a Python-style for loop with an else clause.
+/// Macro that implements a Python-style for loop with an optional else clause.
 ///
-/// This macro allows you to iterate over a sequence and execute an else clause
+/// This macro allows you to iterate over a sequence and optionally execute an else clause
 /// if no break is called and no error is returned during iteration.
 ///
 /// # Syntax
@@ -83,6 +90,13 @@
 ///
 /// ```
 /// use pythonic_for::pythonic_for;
+///
+/// // Basic for loop without else clause
+/// let mut sum = 0;
+/// pythonic_for!((i in 0..5) {
+///     sum += i;
+/// });
+/// assert_eq!(sum, 10); // 0+1+2+3+4 = 10
 ///
 /// // Basic for loop with else clause
 /// let mut sum = 0;
@@ -114,8 +128,8 @@
 ///
 /// # Features
 ///
-/// - **Else Clause**: The else clause is executed if the loop completes without a break
-///   or an error, similar to Python's for-else construct.
+/// - **Optional Else Clause**: The else clause is executed if the loop completes without a break
+///   or an error, similar to Python's for-else construct. The else clause is optional.
 /// - **Inclusive/Exclusive Ranges**: Supports both inclusive (`..=`) and exclusive (`..`) ranges.
 /// - **Step Values**: Allows specifying a step value for iteration, including negative steps
 ///   for reverse iteration.
@@ -153,6 +167,30 @@
 /// ```
 #[macro_export]
 macro_rules! pythonic_for {
+    // For iterating over any iterable without an else clause
+    (($var:ident in $iterable:expr) $body:block) => {
+        {
+            let mut _break_occurred = false;
+            let mut _error_occurred = false;
+
+            'pythonic_for_loop: {
+                let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    for $var in $iterable {
+                        // Execute the loop body
+                        // If a break occurs in the body, it should use:
+                        // _break_occurred = true;
+                        // break 'pythonic_for_loop;
+                        $body
+                    }
+                }));
+
+                if result.is_err() {
+                    _error_occurred = true;
+                }
+            }
+        }
+    };
+
     // For iterating over any iterable with an else clause
     (($var:ident in $iterable:expr) $body:block else $else_body:block) => {
         {
@@ -182,7 +220,67 @@ macro_rules! pythonic_for {
         }
     };
 
-    // For iterating over a range with a step
+    // For iterating over a range with a step without an else clause
+    (($var:ident in $range:expr, step = $step:expr) $body:block) => {
+        {
+            let mut _break_occurred = false;
+            let mut _error_occurred = false;
+
+            'pythonic_for_loop: {
+                let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    let step = $step;
+                    let range = $range;
+
+                    let is_inclusive = {
+                        let range_str = format!("{:?}", range);
+                        range_str.contains("=")
+                    };
+
+                    if step > 0 {
+                        // Forward iteration with positive step
+                        let start = range.start;
+                        let end = range.end;
+                        let mut current = start;
+
+                        while if is_inclusive { current <= end } else { current < end } {
+                            let $var = current;
+
+                            // Execute the loop body
+                            // If a break occurs in the body, it should use:
+                            // _break_occurred = true;
+                            // break 'pythonic_for_loop;
+                            $body
+
+                            current += step;
+                        }
+                    } else if step < 0 {
+                        // Reverse iteration with negative step
+                        let start = range.start;
+                        let end = range.end;
+                        let mut current = start;
+
+                        while if is_inclusive { current >= end } else { current > end } {
+                            let $var = current;
+
+                            // Execute the loop body
+                            // If a break occurs in the body, it should use:
+                            // _break_occurred = true;
+                            // break 'pythonic_for_loop;
+                            $body
+
+                            current += step;
+                        }
+                    }
+                }));
+
+                if result.is_err() {
+                    _error_occurred = true;
+                }
+            }
+        }
+    };
+
+    // For iterating over a range with a step with an else clause
     (($var:ident in $range:expr, step = $step:expr) $body:block else $else_body:block) => {
         {
             let mut _break_occurred = false;
@@ -277,6 +375,17 @@ mod tests {
     }
 
     #[test]
+    fn test_for_without_else() {
+        let mut sum = 0;
+
+        pythonic_for!((i in 0..5) {
+            sum += i;
+        });
+
+        assert_eq!(sum, 10); // 0+1+2+3+4 = 10
+    }
+
+    #[test]
     fn test_for_with_break() {
         let mut found = false;
 
@@ -348,6 +457,17 @@ mod tests {
     }
 
     #[test]
+    fn test_step_value_without_else() {
+        let mut sum = 0;
+
+        pythonic_for!((i in 0..10, step = 2) {
+            sum += i;
+        });
+
+        assert_eq!(sum, 20); // 0+2+4+6+8 = 20
+    }
+
+    #[test]
     fn test_negative_step() {
         let mut sum = 0;
 
@@ -377,6 +497,17 @@ mod tests {
     }
 
     #[test]
+    fn test_negative_step_without_else() {
+        let mut sum = 0;
+
+        pythonic_for!((i in 10..0, step = -2) {
+            sum += i;
+        });
+
+        assert_eq!(sum, 30); // 10+8+6+4+2 = 30
+    }
+
+    #[test]
     fn test_iterable() {
         let vec = vec![1, 2, 3, 4, 5];
         let mut sum = 0;
@@ -394,6 +525,18 @@ mod tests {
         }
 
         assert_eq!(sum, 115); // 1+2+3+4+5+100 = 115
+    }
+
+    #[test]
+    fn test_iterable_without_else() {
+        let vec = vec![1, 2, 3, 4, 5];
+        let mut sum = 0;
+
+        pythonic_for!((i in vec) {
+            sum += i;
+        });
+
+        assert_eq!(sum, 15); // 1+2+3+4+5 = 15
     }
 
     #[test]
