@@ -173,20 +173,18 @@ macro_rules! pythonic_for {
             let mut _break_occurred = false;
             let mut _error_occurred = false;
 
-            'pythonic_for_loop: {
-                let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    for $var in $iterable {
-                        // Execute the loop body
-                        // If a break occurs in the body, it should use:
-                        // _break_occurred = true;
-                        // break 'pythonic_for_loop;
-                        $body
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                'pythonic_for_loop: for $var in $iterable {
+                    $body
+                    
+                    if _break_occurred {
+                        break 'pythonic_for_loop;
                     }
-                }));
-
-                if result.is_err() {
-                    _error_occurred = true;
                 }
+            }));
+
+            if result.is_err() {
+                _error_occurred = true;
             }
         }
     };
@@ -197,20 +195,18 @@ macro_rules! pythonic_for {
             let mut _break_occurred = false;
             let mut _error_occurred = false;
 
-            'pythonic_for_loop: {
-                let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    for $var in $iterable {
-                        // Execute the loop body
-                        // If a break occurs in the body, it should use:
-                        // _break_occurred = true;
-                        // break 'pythonic_for_loop;
-                        $body
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                'pythonic_for_loop: for $var in $iterable {
+                    $body
+                    
+                    if _break_occurred {
+                        break 'pythonic_for_loop;
                     }
-                }));
-
-                if result.is_err() {
-                    _error_occurred = true;
                 }
+            }));
+
+            if result.is_err() {
+                _error_occurred = true;
             }
 
             // Execute the else body only if no break occurred and no error occurred
@@ -226,56 +222,66 @@ macro_rules! pythonic_for {
             let mut _break_occurred = false;
             let mut _error_occurred = false;
 
-            'pythonic_for_loop: {
-                let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    let step = $step;
-                    let range = $range;
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let step = $step;
+                let range = $range;
 
-                    let is_inclusive = {
-                        let range_str = format!("{:?}", range);
-                        range_str.contains("=")
-                    };
+                let is_inclusive = {
+                    let range_str = format!("{:?}", range);
+                    range_str.contains("=")
+                };
 
-                    if step > 0 {
-                        // Forward iteration with positive step
-                        let start = range.start;
-                        let end = range.end;
-                        let mut current = start;
+                if step > 0 {
+                    // Forward iteration with positive step
+                    let start = range.start;
+                    let end = range.end;
+                    let mut current = start;
 
-                        while if is_inclusive { current <= end } else { current < end } {
-                            let $var = current;
-
-                            // Execute the loop body
-                            // If a break occurs in the body, it should use:
-                            // _break_occurred = true;
-                            // break 'pythonic_for_loop;
-                            $body
-
-                            current += step;
+                    'pythonic_for_loop: while if is_inclusive { current <= end } else { current < end } {
+                        let $var = current;
+                        
+                        // Execute the loop body
+                        let _result = (|| {
+                            #[allow(unused_labels)]
+                            'inner: {
+                                $body
+                            }
+                        })();
+                        
+                        if _break_occurred {
+                            break 'pythonic_for_loop;
                         }
-                    } else if step < 0 {
-                        // Reverse iteration with negative step
-                        let start = range.start;
-                        let end = range.end;
-                        let mut current = start;
-
-                        while if is_inclusive { current >= end } else { current > end } {
-                            let $var = current;
-
-                            // Execute the loop body
-                            // If a break occurs in the body, it should use:
-                            // _break_occurred = true;
-                            // break 'pythonic_for_loop;
-                            $body
-
-                            current += step;
-                        }
+                        
+                        current += step;
                     }
-                }));
+                } else if step < 0 {
+                    // Reverse iteration with negative step
+                    let start = range.start;
+                    let end = range.end;
+                    let mut current = start;
 
-                if result.is_err() {
-                    _error_occurred = true;
+                    'pythonic_for_loop: while if is_inclusive { current >= end } else { current > end } {
+                        let $var = current;
+                        
+                        // Execute the loop body
+                        let _result = (|| {
+                            #[allow(unused_labels)]
+                            'inner: {
+                                $body
+                            }
+                        })();
+                        
+                        if _break_occurred {
+                            break 'pythonic_for_loop;
+                        }
+                        
+                        current += step;
+                    }
                 }
+            }));
+
+            if result.is_err() {
+                _error_occurred = true;
             }
         }
     };
@@ -286,56 +292,66 @@ macro_rules! pythonic_for {
             let mut _break_occurred = false;
             let mut _error_occurred = false;
 
-            'pythonic_for_loop: {
-                let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    let step = $step;
-                    let range = $range;
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let step = $step;
+                let range = $range;
 
-                    let is_inclusive = {
-                        let range_str = format!("{:?}", range);
-                        range_str.contains("=")
-                    };
+                let is_inclusive = {
+                    let range_str = format!("{:?}", range);
+                    range_str.contains("=")
+                };
 
-                    if step > 0 {
-                        // Forward iteration with positive step
-                        let start = range.start;
-                        let end = range.end;
-                        let mut current = start;
+                if step > 0 {
+                    // Forward iteration with positive step
+                    let start = range.start;
+                    let end = range.end;
+                    let mut current = start;
 
-                        while if is_inclusive { current <= end } else { current < end } {
-                            let $var = current;
-
-                            // Execute the loop body
-                            // If a break occurs in the body, it should use:
-                            // _break_occurred = true;
-                            // break 'pythonic_for_loop;
-                            $body
-
-                            current += step;
+                    'pythonic_for_loop: while if is_inclusive { current <= end } else { current < end } {
+                        let $var = current;
+                        
+                        // Execute the loop body
+                        let _result = (|| {
+                            #[allow(unused_labels)]
+                            'inner: {
+                                $body
+                            }
+                        })();
+                        
+                        if _break_occurred {
+                            break 'pythonic_for_loop;
                         }
-                    } else if step < 0 {
-                        // Reverse iteration with negative step
-                        let start = range.start;
-                        let end = range.end;
-                        let mut current = start;
-
-                        while if is_inclusive { current >= end } else { current > end } {
-                            let $var = current;
-
-                            // Execute the loop body
-                            // If a break occurs in the body, it should use:
-                            // _break_occurred = true;
-                            // break 'pythonic_for_loop;
-                            $body
-
-                            current += step;
-                        }
+                        
+                        current += step;
                     }
-                }));
+                } else if step < 0 {
+                    // Reverse iteration with negative step
+                    let start = range.start;
+                    let end = range.end;
+                    let mut current = start;
 
-                if result.is_err() {
-                    _error_occurred = true;
+                    'pythonic_for_loop: while if is_inclusive { current >= end } else { current > end } {
+                        let $var = current;
+                        
+                        // Execute the loop body
+                        let _result = (|| {
+                            #[allow(unused_labels)]
+                            'inner: {
+                                $body
+                            }
+                        })();
+                        
+                        if _break_occurred {
+                            break 'pythonic_for_loop;
+                        }
+                        
+                        current += step;
+                    }
                 }
+            }));
+
+            if result.is_err() {
+                _error_occurred = true;
             }
 
             // Execute the else body only if no break occurred and no error occurred
@@ -343,6 +359,22 @@ macro_rules! pythonic_for {
                 $else_body
             }
         }
+    };
+
+    (($var:ident in $iterable:expr) { $($body:tt)* }) => {
+        pythonic_for!(($var in $iterable) { $($body)* })
+    };
+
+    (($var:ident in $iterable:expr) { $($body:tt)* } else $else_body:block) => {
+        pythonic_for!(($var in $iterable) { $($body)* } else $else_body)
+    };
+
+    (($var:ident in $range:expr, step = $step:expr) { $($body:tt)* }) => {
+        pythonic_for!(($var in $range, step = $step) { $($body)* })
+    };
+
+    (($var:ident in $range:expr, step = $step:expr) { $($body:tt)* } else $else_body:block) => {
+        pythonic_for!(($var in $range, step = $step) { $($body)* } else $else_body)
     };
 }
 
