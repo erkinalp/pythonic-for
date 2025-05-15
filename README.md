@@ -2,7 +2,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/pythonic-for.svg)](https://crates.io/crates/pythonic-for)
 [![Documentation](https://docs.rs/pythonic-for/badge.svg)](https://docs.rs/pythonic-for)
-[![License](https://img.shields.io/crates/l/pythonic-for.svg)](https://github.com/erkinalp/pythonic-for/blob/main/LICENSE-MIT)
+[![License](https://img.shields.io/crates/l/pythonic-for.svg)](https://github.com/erkinalp/pythonic-for/blob/default/LICENSE-MIT)
 
 A Rust crate that provides a Python-style `for` loop with an optional `else` clause.
 
