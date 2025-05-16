@@ -898,6 +898,68 @@ mod tests {
         assert_eq!(sum, 101);
         assert_eq!(else_executed, true);
     }
+
+    #[test]
+    fn test_nested_pythonic_for_inner_break() {
+        let mut outer_sum = 0;
+        let mut inner_sum = 0;
+        let mut outer_else_executed = false;
+        let mut inner_else_executed = false;
+        
+        pythonic_for!((i in 0..3) {
+            outer_sum += i;
+            
+            pythonic_for!((j in 0..3) {
+                inner_sum += j;
+                
+                if j == 1 {
+                    break;
+                }
+            } else {
+                inner_else_executed = true;
+            });
+            
+        } else {
+            outer_else_executed = true;
+            outer_sum += 100;
+        });
+        
+        assert_eq!(outer_sum, 103); // 0+1+2+100 = 103
+        assert_eq!(inner_sum, 3);   // (0+1)+(0+1)+(0+1) = 3
+        assert_eq!(inner_else_executed, true); // Inner else executes despite break
+        assert_eq!(outer_else_executed, true);
+    }
+
+    #[test]
+    fn test_nested_pythonic_for_outer_break() {
+        let mut outer_sum = 0;
+        let mut inner_sum = 0;
+        let mut outer_else_executed = false;
+        let mut inner_else_count = 0;
+        
+        pythonic_for!((i in 0..3) {
+            outer_sum += i;
+            
+            pythonic_for!((j in 0..3) {
+                inner_sum += j;
+            } else {
+                inner_else_count += 1;
+                inner_sum += 10;
+            });
+            
+            if i == 1 {
+                break;
+            }
+        } else {
+            outer_else_executed = true;
+            outer_sum += 100;
+        });
+        
+        assert_eq!(outer_sum, 101);   // 0+1+100 = 101 (outer else executes despite break)
+        assert_eq!(inner_sum, 13);  // (0+1+2)+(0+1+2)+10+10 = 13
+        assert_eq!(inner_else_count, 2);
+        assert_eq!(outer_else_executed, false);
+    }
 }
 
 #[macro_export]
