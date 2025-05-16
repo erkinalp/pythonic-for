@@ -750,7 +750,7 @@ mod tests {
     }
 
     #[test]
-    fn test_nested_loops() {
+    fn test_nested_loops_without_else() {
         let mut sum = 0;
         let mut outer_count = 0;
         let mut inner_breaks = 0;
@@ -775,6 +775,39 @@ mod tests {
         assert_eq!(outer_count, 2);
         assert_eq!(inner_breaks, 2);
         assert_eq!(sum, 1);
+    }
+    
+    #[test]
+    fn test_nested_loops_with_else() {
+        let mut sum = 0;
+        let mut outer_count = 0;
+        let mut inner_breaks = 0;
+        let mut else_executed = false;
+        
+        pythonic_for!((i in 0..3) {
+            outer_count += 1;
+            
+            for j in 0..3 {
+                sum += i * j;
+                
+                if j == 1 {
+                    inner_breaks += 1;
+                    break;
+                }
+            }
+            
+            if i == 1 {
+                break;
+            }
+        } else {
+            else_executed = true;
+            sum += 100;
+        });
+        
+        assert_eq!(outer_count, 2);
+        assert_eq!(inner_breaks, 2);
+        assert_eq!(sum, 101);
+        assert_eq!(else_executed, true);
     }
 }
 
