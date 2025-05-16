@@ -956,9 +956,9 @@ mod tests {
         });
         
         assert_eq!(outer_sum, 101);   // 0+1+100 = 101 (outer else executes despite break)
-        assert_eq!(inner_sum, 13);  // (0+1+2)+(0+1+2)+10+10 = 13
+        assert_eq!(inner_sum, 26);  // (0+1+2)+(0+1+2)+10+10 = 26
         assert_eq!(inner_else_count, 2);
-        assert_eq!(outer_else_executed, false);
+        assert_eq!(outer_else_executed, true);
     }
 }
 

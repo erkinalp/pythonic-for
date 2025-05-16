@@ -1,22 +1,37 @@
 use proc_macro::TokenStream;
-use quote::{quote, ToTokens};
+use quote::quote;
 use syn::{parse_macro_input, Block, ExprBreak, visit_mut::{self, VisitMut}};
 
 struct BreakTransformer {
     loop_depth: usize,
+    in_pythonic_for: bool,
 }
 
 impl BreakTransformer {
     fn new() -> Self {
-        Self { loop_depth: 0 }
+        Self { 
+            loop_depth: 0,
+            in_pythonic_for: true,
+        }
     }
 }
 
 impl VisitMut for BreakTransformer {
     fn visit_expr_for_loop_mut(&mut self, node: &mut syn::ExprForLoop) {
+        let was_in_pythonic_for = self.in_pythonic_for;
+        
+        if let Some(label) = &node.label {
+            let label_str = format!("{}", quote!(#label));
+            if label_str.contains("pythonic_for_loop") {
+                self.in_pythonic_for = true;
+            }
+        }
+        
         self.loop_depth += 1;
         visit_mut::visit_expr_for_loop_mut(self, node);
         self.loop_depth -= 1;
+        
+        self.in_pythonic_for = was_in_pythonic_for;
     }
 
     fn visit_expr_while_mut(&mut self, node: &mut syn::ExprWhile) {
@@ -32,7 +47,7 @@ impl VisitMut for BreakTransformer {
     }
 
     fn visit_expr_break_mut(&mut self, node: &mut ExprBreak) {
-        if self.loop_depth == 1 {
+        if self.in_pythonic_for {
             let label = &node.label;
             let expr = &node.expr;
             
