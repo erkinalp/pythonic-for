@@ -79,10 +79,27 @@
 //! assert_eq!(sum, 115); // 1+2+3+4+5+100 = 115
 //! ```
 
+/// # Parameters
+///
+/// * `var: ident` - The variable name to bind in each iteration
+/// * `iterable: expr` - Any expression that implements `IntoIterator`
+/// * `body: block` - The code block to execute for each iteration
+/// * `else_body: block` - Optional code block to execute if no break occurs
+/// * `range: expr` - A range expression (e.g., `0..5` or `1..=10`)
+/// * `step: expr` - An integer expression for the step value (can be positive or negative)
+///
+/// # Return Value
+///
+/// This macro does not return a value; it executes the provided code blocks.
 /// Macro that implements a Python-style for loop with an optional else clause.
 ///
 /// This macro allows you to iterate over a sequence and optionally execute an else clause
 /// if no break is called and no error is returned during iteration.
+///
+///
+///
+///
+/// This macro does not return a value; it executes the provided code blocks.
 ///
 /// # Syntax
 ///
@@ -192,6 +209,13 @@ macro_rules! pythonic_for {
     // For iterating over any iterable with an else clause
     (($var:ident in $iterable:expr) $body:block else $else_body:block) => {
         {
+            // This is a compile-time warning for using cycle() with an else clause
+            if let Some(iter) = (&$iterable).into_iter().next().map(|_| &$iterable) {
+                if $crate::_is_likely_cycle(iter) {
+                    $crate::_cycle_with_else_warning!();
+                }
+            }
+            
             let mut _break_occurred = false;
             let mut _error_occurred = false;
 
@@ -880,5 +904,22 @@ mod tests {
 macro_rules! _internal_pythonic_for_body {
     ($body:block) => {
         pythonic_for_proc_macros::transform_body! { $body }
+    };
+}
+#[doc(hidden)]
+#[inline]
+pub fn _is_likely_cycle<T, I: Iterator<Item = T>>(_iter: &I) -> bool {
+    let type_name = std::any::type_name::<I>();
+    type_name.contains("Cycle")
+}
+
+/// This macro is used internally by pythonic_for when a cycle iterator is detected with an else clause
+#[macro_export]
+#[deprecated(
+    since = "0.1.0",
+    note = "Using cycle() with an else clause creates a logical error"
+)]
+macro_rules! _cycle_with_else_warning {
+    () => {
     };
 }
