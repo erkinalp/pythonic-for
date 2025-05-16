@@ -210,8 +210,9 @@ macro_rules! pythonic_for {
     (($var:ident in $iterable:expr) $body:block else $else_body:block) => {
         {
             // This is a compile-time warning for using cycle() with an else clause
-            if let Some(iter) = (&$iterable).into_iter().next().map(|_| &$iterable) {
-                if $crate::_is_likely_cycle(iter) {
+            {
+                let type_name = stringify!($iterable);
+                if type_name.contains("cycle") || type_name.contains("Cycle") {
                     $crate::_cycle_with_else_warning!();
                 }
             }
