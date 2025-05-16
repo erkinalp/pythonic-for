@@ -750,6 +750,70 @@ mod tests {
     }
 
     #[test]
+    fn test_enumerate_iterator() {
+        let letters = vec!['a', 'b', 'c'];
+        let mut result = String::new();
+
+        let enumerated = letters.iter().enumerate();
+
+        pythonic_for!((pair in enumerated) {
+            result.push_str(&format!("{}{}", pair.0, pair.1));
+        } else {
+            result.push_str("done");
+        });
+
+        assert_eq!(result, "0a1b2cdone");
+    }
+
+    #[test]
+    fn test_take_iterator() {
+        let numbers = vec![1, 2, 3, 4, 5];
+        let mut sum = 0;
+
+        let taken = numbers.iter().take(3);
+
+        pythonic_for!((value in taken) {
+            sum += *value;
+        } else {
+            sum += 100;
+        });
+
+        assert_eq!(sum, 106); // 1+2+3+100 = 106
+    }
+
+    #[test]
+    fn test_skip_iterator() {
+        let numbers = vec![1, 2, 3, 4, 5];
+        let mut sum = 0;
+
+        let skipped = numbers.iter().skip(2);
+
+        pythonic_for!((value in skipped) {
+            sum += *value;
+        } else {
+            sum += 100;
+        });
+
+        assert_eq!(sum, 112); // 3+4+5+100 = 112
+    }
+
+    #[test]
+    fn test_flat_map_iterator() {
+        let nested = vec![vec![1, 2], vec![3, 4]];
+        let mut sum = 0;
+
+        let flattened = nested.iter().flat_map(|v| v.iter());
+
+        pythonic_for!((value in flattened) {
+            sum += *value;
+        } else {
+            sum += 100;
+        });
+
+        assert_eq!(sum, 110); // 1+2+3+4+100 = 110
+    }
+
+    #[test]
     fn test_nested_loops_without_else() {
         let mut sum = 0;
         let mut outer_count = 0;
