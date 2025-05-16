@@ -244,7 +244,7 @@ macro_rules! pythonic_for {
                         let _result = (|| {
                             #[allow(unused_labels)]
                             'inner: {
-                                $body
+                    $body
                             }
                         })();
                         
@@ -267,7 +267,7 @@ macro_rules! pythonic_for {
                         let _result = (|| {
                             #[allow(unused_labels)]
                             'inner: {
-                                $body
+                    $body
                             }
                         })();
                         
@@ -314,7 +314,7 @@ macro_rules! pythonic_for {
                         let _result = (|| {
                             #[allow(unused_labels)]
                             'inner: {
-                                $body
+                    $body
                             }
                         })();
                         
@@ -337,7 +337,7 @@ macro_rules! pythonic_for {
                         let _result = (|| {
                             #[allow(unused_labels)]
                             'inner: {
-                                $body
+                    $body
                             }
                         })();
                         
@@ -748,4 +748,40 @@ mod tests {
 
         assert_eq!(result, "1a2b3cdone");
     }
+
+    #[test]
+    fn test_nested_loops() {
+        let mut sum = 0;
+        let mut outer_count = 0;
+        let mut inner_breaks = 0;
+        
+        pythonic_for!((i in 0..3) {
+            outer_count += 1;
+            
+            for j in 0..3 {
+                sum += i * j;
+                
+                if j == 1 {
+                    inner_breaks += 1;
+                    break;
+                }
+            }
+            
+            if i == 1 {
+                break;
+            }
+        });
+        
+        assert_eq!(outer_count, 2);
+        assert_eq!(inner_breaks, 2);
+        assert_eq!(sum, 1);
+    }
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! _internal_pythonic_for_body {
+    ($body:block) => {
+        $body
+    };
 }

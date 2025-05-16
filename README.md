@@ -147,6 +147,84 @@ pythonic_for!((value in square_iter) {
 assert_eq!(sum, 114); // 1+4+9+100 = 114
 ```
 
+## Break Statements
+
+The `pythonic_for!` macro now automatically handles break statements without requiring any manual intervention:
+
+```rust
+pythonic_for!((i in 0..5) {
+    if i == 3 {
+        break; // Automatically sets _break_occurred internally
+    }
+} else {
+    // This will not execute if break was used
+});
+```
+
+## Iterator Adapters
+
+The `pythonic_for!` macro works seamlessly with all standard Iterator adapters:
+
+```rust
+// Using enumerate
+let letters = vec!['a', 'b', 'c'];
+pythonic_for!((pair in letters.iter().enumerate()) {
+    let (idx, ch) = pair;
+    println!("Index: {}, Value: {}", idx, ch);
+});
+
+// Using take to limit iterations
+let numbers = vec![1, 2, 3, 4, 5, 6];
+pythonic_for!((n in numbers.iter().take(3)) {
+    // Only iterates over the first 3 elements
+});
+
+// Using skip to start from a specific position
+pythonic_for!((n in numbers.iter().skip(2)) {
+    // Skips the first 2 elements
+});
+
+// Using flat_map for nested collections
+let nested = vec![vec![1, 2], vec![3, 4]];
+pythonic_for!((n in nested.iter().flat_map(|v| v.iter())) {
+    // Flattens the nested structure
+});
+
+// Using cycle with break for infinite iteration
+pythonic_for!((n in numbers.iter().cycle()) {
+    // Will cycle through the collection indefinitely
+    if some_condition {
+        break; // Use break to exit the loop
+    }
+});
+
+// Other adapters like filter_map, chain, zip, etc. are also supported
+```
+
+## Error Handling
+
+The `pythonic_for!` macro supports two types of error handling:
+
+1. **Panic handling**: If a panic occurs in the loop body, the else clause is skipped.
+
+2. **Result-based error handling**: You can use Result types with the macro:
+
+```rust
+let mut result: Result<i32, &str> = Ok(0);
+pythonic_for!((i in 0..5) {
+    if some_condition {
+        result = Err("Error occurred");
+        break;
+    }
+    // Process if Ok
+    if let Ok(val) = result {
+        result = Ok(val + i);
+    }
+} else {
+    // This only executes if no error occurred and no break was used
+});
+```
+
 ## License
 
 Licensed under either of:
