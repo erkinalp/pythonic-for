@@ -175,7 +175,7 @@ macro_rules! pythonic_for {
 
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 'pythonic_for_loop: for $var in $iterable {
-                    $body
+                    $crate::_internal_pythonic_for_body!($body);
                     
                     if _break_occurred {
                         break 'pythonic_for_loop;
@@ -197,7 +197,7 @@ macro_rules! pythonic_for {
 
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 'pythonic_for_loop: for $var in $iterable {
-                    $body
+                    $crate::_internal_pythonic_for_body!($body);
                     
                     if _break_occurred {
                         break 'pythonic_for_loop;
@@ -244,7 +244,7 @@ macro_rules! pythonic_for {
                         let _result = (|| {
                             #[allow(unused_labels)]
                             'inner: {
-                    $body
+                                $crate::_internal_pythonic_for_body!($body);
                             }
                         })();
                         
@@ -267,7 +267,7 @@ macro_rules! pythonic_for {
                         let _result = (|| {
                             #[allow(unused_labels)]
                             'inner: {
-                    $body
+                                $crate::_internal_pythonic_for_body!($body);
                             }
                         })();
                         
@@ -314,7 +314,7 @@ macro_rules! pythonic_for {
                         let _result = (|| {
                             #[allow(unused_labels)]
                             'inner: {
-                    $body
+                                $crate::_internal_pythonic_for_body!($body);
                             }
                         })();
                         
@@ -337,7 +337,7 @@ macro_rules! pythonic_for {
                         let _result = (|| {
                             #[allow(unused_labels)]
                             'inner: {
-                    $body
+                                $crate::_internal_pythonic_for_body!($body);
                             }
                         })();
                         
@@ -815,6 +815,6 @@ mod tests {
 #[doc(hidden)]
 macro_rules! _internal_pythonic_for_body {
     ($body:block) => {
-        $body
+        pythonic_for_proc_macros::transform_body! { $body }
     };
 }

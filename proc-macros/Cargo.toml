@@ -1,0 +1,16 @@
+[package]
+name = "pythonic-for-proc-macros"
+version = "0.1.0"
+edition = "2021"
+authors = ["Erkin Alp Güney <erkinalp9035@gmail.com>"]
+description = "Procedural macros for the pythonic-for crate"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/erkinalp/pythonic-for"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = { version = "2.0", features = ["full", "visit-mut", "extra-traits"] }

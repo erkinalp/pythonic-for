@@ -12,3 +12,7 @@ keywords = ["python", "for", "loop", "else", "iterator"]
 categories = ["rust-patterns", "no-std"]
 
 [dependencies]
+pythonic-for-proc-macros = { path = "./proc-macros", version = "0.1.0" }
+
+[workspace]
+members = ["proc-macros"]
