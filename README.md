@@ -161,6 +161,66 @@ pythonic_for!((i in 0..5) {
 });
 ```
 
+## Common Pitfalls and Best Practices
+
+### Infinite Iterators
+
+When using infinite iterators like `cycle()` with an else clause, the else clause becomes unreachable unless you include a break statement:
+
+```rust
+// LOGICAL ERROR: The else clause will never execute
+pythonic_for!((n in numbers.iter().cycle()) {
+    // This will cycle through the collection indefinitely
+} else {
+    // This code is unreachable without a break in the loop body
+});
+
+// CORRECT: Use a break condition with infinite iterators
+pythonic_for!((n in numbers.iter().cycle()) {
+    // Process n
+    if some_condition {
+        break; // Exit condition makes the loop finite
+    }
+} else {
+    // Now this can be reached if the break condition is met
+});
+```
+
+### Nested Loops
+
+When using nested loops, only breaks in the outermost loop affect the else clause:
+
+```rust
+pythonic_for!((i in 0..3) {
+    for j in 0..3 {
+        if j == 1 {
+            break; // This only breaks from the inner loop
+        }
+    }
+} else {
+    // This will still execute since the break was in the inner loop
+});
+```
+
+### Error Handling
+
+For robust error handling, combine the pythonic_for macro with Result types:
+
+```rust
+let mut result: Result<i32, &str> = Ok(0);
+pythonic_for!((i in 0..5) {
+    match process(i) {
+        Ok(value) => { /* continue processing */ },
+        Err(e) => {
+            result = Err(e);
+            break; // Exit the loop on error
+        }
+    }
+} else {
+    // This only executes if no errors occurred
+});
+```
+
 ## Iterator Adapters
 
 The `pythonic_for!` macro works seamlessly with all standard Iterator adapters:
