@@ -35,15 +35,37 @@ impl VisitMut for BreakTransformer {
     }
 
     fn visit_expr_while_mut(&mut self, node: &mut syn::ExprWhile) {
+        let was_in_pythonic_for = self.in_pythonic_for;
+        
+        if let Some(label) = &node.label {
+            let label_str = format!("{}", quote!(#label));
+            if label_str.contains("pythonic_while_loop") {
+                self.in_pythonic_for = true;
+            }
+        }
+        
         self.loop_depth += 1;
         visit_mut::visit_expr_while_mut(self, node);
         self.loop_depth -= 1;
+        
+        self.in_pythonic_for = was_in_pythonic_for;
     }
 
     fn visit_expr_loop_mut(&mut self, node: &mut syn::ExprLoop) {
+        let was_in_pythonic_for = self.in_pythonic_for;
+        
+        if let Some(label) = &node.label {
+            let label_str = format!("{}", quote!(#label));
+            if label_str.contains("pythonic_while_loop") || label_str.contains("pythonic_for_loop") {
+                self.in_pythonic_for = true;
+            }
+        }
+        
         self.loop_depth += 1;
         visit_mut::visit_expr_loop_mut(self, node);
         self.loop_depth -= 1;
+        
+        self.in_pythonic_for = was_in_pythonic_for;
     }
 
     fn visit_expr_break_mut(&mut self, node: &mut ExprBreak) {
