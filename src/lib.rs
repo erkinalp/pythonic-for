@@ -209,12 +209,14 @@ macro_rules! pythonic_for {
     // For iterating over any iterable with an else clause
     (($var:ident in $iterable:expr) $body:block else $else_body:block) => {
         {
-            // This is a compile-time warning for using cycle() with an else clause
+            let mut _cycle_detected = false;
             {
-                let type_name = stringify!($iterable);
-                if type_name.contains("cycle") || type_name.contains("Cycle") {
-                    $crate::_cycle_with_else_warning!();
-                }
+                let iter_ref = &$iterable;
+                _cycle_detected = $crate::_is_likely_cycle(iter_ref);
+            }
+            
+            if _cycle_detected {
+                $crate::_warn_cycle_with_else();
             }
             
             let mut _break_occurred = false;
@@ -971,18 +973,228 @@ macro_rules! _internal_pythonic_for_body {
 }
 #[doc(hidden)]
 #[inline]
-pub fn _is_likely_cycle<T, I: Iterator<Item = T>>(_iter: &I) -> bool {
+pub fn _is_likely_cycle<I>(_iter: &I) -> bool {
     let type_name = std::any::type_name::<I>();
-    type_name.contains("Cycle")
+    type_name.contains("std::iter::Cycle") || type_name.contains("::Cycle<")
 }
 
-/// This macro is used internally by pythonic_for when a cycle iterator is detected with an else clause
-#[macro_export]
 #[deprecated(
     since = "0.1.0",
-    note = "Using cycle() with an else clause creates a logical error"
+    note = "Warning: Using cycle() iterator with else clause may create a logical error. \
+           The else clause will never execute because cycle() creates an infinite iterator. \
+           Consider adding a break condition in your loop body if this is intentional."
 )]
-macro_rules! _cycle_with_else_warning {
-    () => {
+#[doc(hidden)]
+#[inline]
+pub fn _warn_cycle_with_else() {
+}
+
+/// 
+/// immediately skip to the else clause without any iteration.
+#[doc(hidden)]
+#[inline]
+pub fn _is_likely_false_condition(condition: &str) -> bool {
+    condition == "false" || 
+    condition == "0 == 1" || 
+    condition == "1 == 0" ||
+    condition == "0 != 0" ||
+    condition == "1 != 1" ||
+    condition.contains(" < ") && condition.split(" < ").collect::<Vec<&str>>().len() == 2 &&
+        condition.split(" < ").nth(0).unwrap().trim().parse::<i32>().is_ok() &&
+        condition.split(" < ").nth(1).unwrap().trim().parse::<i32>().is_ok() &&
+        condition.split(" < ").nth(0).unwrap().trim().parse::<i32>().unwrap() >= 
+        condition.split(" < ").nth(1).unwrap().trim().parse::<i32>().unwrap()
+}
+
+#[deprecated(
+    since = "0.1.0",
+    note = "Warning: Using a while loop with a condition known to be false at compile time with an else clause may create a logical error. \
+           The loop body will never execute and control will immediately pass to the else clause. \
+           Consider using an if-else statement instead if this is intentional."
+)]
+#[doc(hidden)]
+#[inline]
+pub fn _warn_false_condition_with_else() {
+}
+
+/// A macro that provides Python-style while loops with an optional else clause.
+///
+/// This macro allows you to create while loops that optionally execute an else clause
+/// if no break is called and no error is returned during iteration.
+///
+/// # Examples
+///
+/// ```
+/// use pythonic_for::pythonic_while;
+///
+/// // Basic while-else loop - no break occurs, so else clause executes
+/// let mut counter = 0;
+/// let mut result = 0;
+///
+/// pythonic_while!(counter < 5; {
+///     result += counter;
+///     counter += 1;
+/// } else {
+///     result += 100;
+/// });
+///
+/// assert_eq!(result, 110); // 0+1+2+3+4+100 = 110
+/// ```
+///
+/// ```
+/// use pythonic_for::pythonic_while;
+///
+/// let mut counter = 0;
+/// let mut result = 0;
+///
+/// // We'll use a separate test without an else clause
+/// pythonic_while!(counter < 1; {
+///     result += counter;
+///     counter += 1;
+/// });
+///
+/// assert_eq!(result, 0); // Counter starts at 0, so result = 0
+/// assert_eq!(counter, 1); // Counter is incremented to 1
+/// ```
+#[macro_export]
+macro_rules! pythonic_while {
+    // Standard while loop with a body but no else clause
+    ($condition:expr; $body:block) => {
+        {
+            let mut _break_occurred = false;
+            let mut _error_occurred = false;
+
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                'pythonic_while_loop: while $condition {
+                    $crate::_internal_pythonic_while_body!($body);
+                    
+                    if _break_occurred {
+                        break 'pythonic_while_loop;
+                    }
+                }
+            }));
+
+            if result.is_err() {
+                _error_occurred = true;
+            }
+        }
+    };
+
+    // Standard while loop with a body and an else clause
+    ($condition:expr; $body:block else $else_body:block) => {
+        {
+            let condition_str = stringify!($condition);
+            let _false_condition_detected = $crate::_is_likely_false_condition(condition_str);
+            
+            if _false_condition_detected {
+                $crate::_warn_false_condition_with_else();
+            }
+            
+            let mut _break_occurred = false;
+            let mut _error_occurred = false;
+
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                'pythonic_while_loop: while $condition {
+                    $crate::_internal_pythonic_while_body!($body);
+                    
+                    if _break_occurred {
+                        break 'pythonic_while_loop;
+                    }
+                }
+            }));
+
+            if result.is_err() {
+                _error_occurred = true;
+            }
+
+            // Execute the else body only if no break occurred and no error occurred
+            if !_break_occurred && !_error_occurred {
+                $else_body
+            }
+        }
+    };
+
+    // Do-while pattern without an else clause
+    (do $body:block; while $condition:expr; $extra_body:block) => {
+        {
+            let mut _break_occurred = false;
+            let mut _error_occurred = false;
+
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                'pythonic_while_loop: loop {
+                    $crate::_internal_pythonic_while_body!($body);
+                    
+                    if _break_occurred {
+                        break 'pythonic_while_loop;
+                    }
+                    
+                    if !($condition) {
+                        break 'pythonic_while_loop;
+                    }
+                    
+                    $crate::_internal_pythonic_while_body!($extra_body);
+                    
+                    if _break_occurred {
+                        break 'pythonic_while_loop;
+                    }
+                }
+            }));
+
+            if result.is_err() {
+                _error_occurred = true;
+            }
+        }
+    };
+
+    // Do-while pattern with an else clause
+    (do $body:block; while $condition:expr; $extra_body:block else $else_body:block) => {
+        {
+            let condition_str = stringify!($condition);
+            let _false_condition_detected = $crate::_is_likely_false_condition(condition_str);
+            
+            if _false_condition_detected {
+                $crate::_warn_false_condition_with_else();
+            }
+            
+            let mut _break_occurred = false;
+            let mut _error_occurred = false;
+
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                'pythonic_while_loop: loop {
+                    $crate::_internal_pythonic_while_body!($body);
+                    
+                    if _break_occurred {
+                        break 'pythonic_while_loop;
+                    }
+                    
+                    if !($condition) {
+                        break 'pythonic_while_loop;
+                    }
+                    
+                    $crate::_internal_pythonic_while_body!($extra_body);
+                    
+                    if _break_occurred {
+                        break 'pythonic_while_loop;
+                    }
+                }
+            }));
+
+            if result.is_err() {
+                _error_occurred = true;
+            }
+
+            // Execute the else body only if no break occurred and no error occurred
+            if !_break_occurred && !_error_occurred {
+                $else_body
+            }
+        }
+    };
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! _internal_pythonic_while_body {
+    ($body:block) => {
+        pythonic_for_proc_macros::transform_body! { $body }
     };
 }
