@@ -1,11 +1,13 @@
 [package]
 name = "pythonic-for-proc-macros"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Erkin Alp Güney <erkinalp9035@gmail.com>"]
-description = "Procedural macros for the pythonic-for crate"
+description = "Procedural macros for implementing Python-style for-else and while-else loops in the pythonic-for crate."
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/erkinalp/pythonic-for"
+keywords = ["rust", "macros", "proc-macro", "pythonic-for"]
+categories = ["development-tools::procedural-macro-helpers"]
 
 [lib]
 proc-macro = true
