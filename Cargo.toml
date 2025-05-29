@@ -1,18 +1,18 @@
 [package]
 name = "pythonic-for"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Erkin Alp Güney <erkinalp9035@gmail.com>"]
-description = "A Rust crate that provides a Python-style for loop with an else clause"
+description = "A Rust crate that provides Python-style `for` and `while` loops with an optional `else` clause."
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/erkinalp/pythonic-for"
 documentation = "https://docs.rs/pythonic-for"
 readme = "README.md"
-keywords = ["python", "for", "loop", "else", "iterator"]
-categories = ["rust-patterns", "no-std"]
+keywords = ["python", "for", "while", "loop", "do-while", "else", "control-flow", "iterator", "proc-macro"]
+categories = ["rust-patterns"]
 
 [dependencies]
-pythonic-for-proc-macros = { path = "./proc-macros", version = "0.1.0" }
+pythonic-for-proc-macros = { path = "./proc-macros", version = "0.2.0" }
 
 [workspace]
 members = ["proc-macros"]
