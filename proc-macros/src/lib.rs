@@ -1,17 +1,27 @@
+/*
+This code is 100% AI-generated.
+It is out of copyright outside the Commonwealth due to the lack of legal personhood of the creator.
+*/
 use proc_macro::TokenStream;
 use quote::{quote, format_ident};
 use syn::{
     parse_macro_input, Block, ExprBreak, visit_mut::{self, VisitMut}, Token, Ident, Expr, Result,
-    parse::{Parse, ParseStream}, RangeLimits, Pat, Lifetime, Lit, ExprLit,
+    parse::{Parse, ParseStream}, RangeLimits, Pat, Lifetime, Lit, ExprLit, Error,
 };
 
+/// Defines the input structure for the `transform_body` macro.
+/// Expects an input in the format `label, { body }`.
 struct TransformBodyInput {
+    /// The lifetime (label) associated with the loop.
     label: Lifetime,
+    /// The comma separating the label and the body.
     _comma: Token![,],
+    /// The block of code to be transformed.
     body: Block,
 }
 
 impl Parse for TransformBodyInput {
+    /// Parses a `TransformBodyInput` from a TokenStream.
     fn parse(input: ParseStream) -> Result<Self> {
         Ok(Self {
             label: input.parse()?,
@@ -21,12 +31,16 @@ impl Parse for TransformBodyInput {
     }
 }
 
+/// A visitor used to transform `break` statements within Pythonic `for` loops.
 struct BreakTransformer {
+    /// Flag indicating if the current context is within the body of a Pythonic `for` loop.
     in_pythonic_loop_body: bool, 
+    /// The lifetime (label) of the current loop.
     current_loop_label: Lifetime,
 }
 
 impl BreakTransformer {
+    /// Creates a new `BreakTransformer` for a given loop label.
     fn new(loop_label: Lifetime) -> Self {
         Self {
             in_pythonic_loop_body: true, 
@@ -36,6 +50,7 @@ impl BreakTransformer {
 }
 
 impl VisitMut for BreakTransformer {
+    /// Visits an `ExprForLoop` node, setting the `in_pythonic_loop_body` flag for its body.
     fn visit_expr_for_loop_mut(&mut self, node: &mut syn::ExprForLoop) {
         let originally_in_pythonic_loop_body = self.in_pythonic_loop_body;
         self.in_pythonic_loop_body = false; 
@@ -43,6 +58,7 @@ impl VisitMut for BreakTransformer {
         self.in_pythonic_loop_body = originally_in_pythonic_loop_body; 
     }
 
+    /// Visits an `ExprWhile` node, setting the `in_pythonic_loop_body` flag for its body.
     fn visit_expr_while_mut(&mut self, node: &mut syn::ExprWhile) {
         let originally_in_pythonic_loop_body = self.in_pythonic_loop_body;
         self.in_pythonic_loop_body = false;
@@ -50,6 +66,7 @@ impl VisitMut for BreakTransformer {
         self.in_pythonic_loop_body = originally_in_pythonic_loop_body;
     }
 
+    /// Visits an `ExprLoop` node, setting the `in_pythonic_loop_body` flag for its body.
     fn visit_expr_loop_mut(&mut self, node: &mut syn::ExprLoop) {
         let originally_in_pythonic_loop_body = self.in_pythonic_loop_body;
         self.in_pythonic_loop_body = false;
@@ -57,12 +74,14 @@ impl VisitMut for BreakTransformer {
         self.in_pythonic_loop_body = originally_in_pythonic_loop_body;
     }
     
+    /// Visits an `Expr` node, transforming `break` statements if found within a Pythonic loop body.
     fn visit_expr_mut(&mut self, node: &mut Expr) {
         if let Expr::Break(expr_break) = node {
             if self.in_pythonic_loop_body {
                 let user_label = &expr_break.label;
                 let break_expr_val = &expr_break.expr;
 
+                // Determine the target label for the break statement.
                 let target_label_to_quote = match user_label {
                     Some(l) => quote!(#l),
                     None => {
@@ -71,6 +90,7 @@ impl VisitMut for BreakTransformer {
                     }
                 };
             
+                // Construct the new break expression with the `_break_occurred` flag.
                 let new_expr_tokens = if let Some(inner_expr) = break_expr_val {
                     quote! {{
                         _break_occurred = true;
@@ -83,12 +103,14 @@ impl VisitMut for BreakTransformer {
                     }}
                 };
                 
+                // Parse the new expression and replace the original node.
                 match syn::parse2::<Expr>(new_expr_tokens) {
                     Ok(new_expr_block) => {
                         *node = new_expr_block; 
                         return; 
                     }
                     Err(e) => {
+                        // If parsing fails, generate a compile-time error message.
                         let error_ts = syn::Error::new_spanned(
                             node, // Span of the original break expression node
                             format!("Internal error in pythonic-for: Failed to construct break transformation: {}", e)
@@ -109,6 +131,8 @@ impl VisitMut for BreakTransformer {
 }
 
 
+/// Procedure macro to transform a block of code by replacing `break` statements
+/// with versions that set a `_break_occurred` flag.
 #[proc_macro]
 pub fn transform_body(input: TokenStream) -> TokenStream {
     // This parses `label, { body }`
@@ -129,19 +153,25 @@ pub fn transform_body(input: TokenStream) -> TokenStream {
     expanded.into()
 }
 
+/// Custom keywords used in the `pythonic_for` macro.
 mod kw {
     syn::custom_keyword!(in_kw);
     syn::custom_keyword!(else_kw);
     syn::custom_keyword!(step);
 }
 
+/// Represents the `step` clause in a Pythonic `for` loop.
 struct StepClause {
+    /// The `step` keyword.
     step_kw: kw::step,
+    /// The `=` token.
     eq_token: Token![=],
+    /// The expression for the step value.
     step_expr: Expr,
 }
 
 impl Parse for StepClause {
+    /// Parses a `StepClause` from a TokenStream.
     fn parse(input: ParseStream) -> Result<Self> {
         Ok(Self {
             step_kw: input.parse()?,
@@ -151,16 +181,23 @@ impl Parse for StepClause {
     }
 }
 
+/// Represents the iterable part of a Pythonic `for` loop.
 enum Iterable {
+    /// A simple expression (e.g., `my_list`).
     Expr(Expr), 
+    /// A range expression with an optional step clause (e.g., `0..10, step=2`).
     RangeWithStep {
+        /// The range expression.
         range_expr: Expr, 
+        /// The comma separating the range and the step clause.
         comma_token: Token![,],
+        /// The step clause.
         step_clause: StepClause,
     },
 }
 
 impl Parse for Iterable {
+    /// Parses an `Iterable` from a TokenStream.
     fn parse(input: ParseStream) -> Result<Self> {
         let expr: Expr = input.parse()?;
         if input.peek(Token![,]) && input.peek2(kw::step) {
@@ -175,12 +212,16 @@ impl Parse for Iterable {
     }
 }
 
+/// Represents the `else` clause of a Pythonic `for` loop.
 struct ElseClause {
+    /// The `else` keyword.
     else_kw: kw::else_kw,
+    /// The body of the `else` block.
     else_body: Block,
 }
 
 impl Parse for ElseClause {
+    /// Parses an `ElseClause` from a TokenStream.
     fn parse(input: ParseStream) -> Result<Self> {
         Ok(ElseClause {
             else_kw: input.parse()?,
@@ -189,19 +230,28 @@ impl Parse for ElseClause {
     }
 }
 
+/// Defines the input structure for the `pythonic_for` macro.
+/// Expects an input in the format `var in iterable { body } [else { else_body }]`.
 struct PythonicForInput {
+    /// The loop variable identifier.
     var: Ident,
+    /// The `in` keyword.
     in_kw: kw::in_kw,
+    /// The iterable expression.
     iterable: Iterable,
+    /// The body of the loop.
     body: Block,
+    /// An optional `else` clause.
     else_clause: Option<ElseClause>,
 }
 
 impl Parse for PythonicForInput {
+    /// Parses a `PythonicForInput` from a TokenStream.
     fn parse(input: ParseStream) -> Result<Self> {
         let var_pat: Pat = input.parse()?;
         let var = match var_pat {
             Pat::Ident(pat_ident) => {
+                // Validate that the loop variable is a simple identifier.
                 if !pat_ident.attrs.is_empty() || pat_ident.by_ref.is_some() || pat_ident.mutability.is_some() || pat_ident.subpat.is_some() {
                      return Err(syn::Error::new_spanned(pat_ident, "Loop variable must be a simple identifier (e.g., `i`), not a complex pattern."));
                 }
@@ -214,6 +264,7 @@ impl Parse for PythonicForInput {
         let iterable: Iterable = input.parse()?;
         let body: Block = input.parse()?;
         
+        // Check for an optional `else` clause.
         let else_clause: Option<ElseClause> = if input.peek(kw::else_kw) {
             Some(input.parse()?)
         } else {
@@ -231,6 +282,8 @@ impl Parse for PythonicForInput {
 }
 
 
+/// Procedure macro to implement Pythonic-style `for` loops in Rust.
+/// Supports simple iterables, ranges with optional steps, and optional `else` clauses.
 #[proc_macro]
 pub fn pythonic_for(input: TokenStream) -> TokenStream {
     let parsed_input = match syn::parse::<PythonicForInput>(input) {
@@ -241,13 +294,15 @@ pub fn pythonic_for(input: TokenStream) -> TokenStream {
     let var_ident = parsed_input.var;
     let user_body = parsed_input.body;
     
-    // Create a unique label for this specific loop invocation
+    // Create a unique label for this specific loop invocation.
     let loop_label_str = format!("pythonic_for_loop_{}", var_ident); 
     let loop_label = Lifetime::new(&loop_label_str, var_ident.span());
 
 
+    // Generate the loop logic based on the type of iterable.
     let loop_logic = match parsed_input.iterable {
         Iterable::Expr(iterable_expr) => {
+            // Standard `for` loop over an expression.
             quote! {
                 #loop_label: for #var_ident in #iterable_expr {
                     pythonic_for_proc_macros::transform_body!(#loop_label, { #user_body })
@@ -255,12 +310,14 @@ pub fn pythonic_for(input: TokenStream) -> TokenStream {
             }
         }
         Iterable::RangeWithStep { range_expr, step_clause, .. } => {
+            // `for` loop over a range with an optional step.
             let (start_expr, end_expr, inclusive) = match range_expr {
                 Expr::Range(expr_range) => {
                     let start = expr_range.start.as_deref();
                     let end = expr_range.end.as_deref();
                     let limits = expr_range.limits;
 
+                    // Ensure start and end values are present for stepped iteration.
                     if start.is_none() {
                         return syn::Error::new_spanned(&expr_range, "Range must have a start value for stepped iteration.")
                                         .to_compile_error().into();
@@ -272,6 +329,7 @@ pub fn pythonic_for(input: TokenStream) -> TokenStream {
                     (start.unwrap().clone(), end.unwrap().clone(), matches!(limits, RangeLimits::Closed(_)))
                 }
                 ref other_expr => {
+                    // Error if the iterable is not a range expression.
                     return syn::Error::new_spanned(
                         other_expr,
                         "Expected a range expression (e.g., `0..10` or `1..=5`) when 'step' is used."
@@ -280,6 +338,7 @@ pub fn pythonic_for(input: TokenStream) -> TokenStream {
             };
             
             let step_val_expr = step_clause.step_expr;
+            // Generate a `while` loop based on the step direction.
             quote! {
                 let __start = #start_expr;
                 let __end = #end_expr;
@@ -291,12 +350,14 @@ pub fn pythonic_for(input: TokenStream) -> TokenStream {
                 }
 
                 if __step > 0 {
+                    // Positive step: iterate upwards.
                     #loop_label: while if #inclusive { __current <= __end } else { __current < __end } {
                         let #var_ident = __current;
                         pythonic_for_proc_macros::transform_body!(#loop_label, { #user_body })
                         __current += __step;
                     }
                 } else if __step < 0 {
+                    // Negative step: iterate downwards.
                     #loop_label: while if #inclusive { __current >= __end } else { __current > __end } {
                         let #var_ident = __current;
                         pythonic_for_proc_macros::transform_body!(#loop_label, { #user_body })
@@ -308,6 +369,7 @@ pub fn pythonic_for(input: TokenStream) -> TokenStream {
         }
     };
 
+    // Generate the `else` block logic if present.
     let else_block_logic = if let Some(else_c) = parsed_input.else_clause {
         let else_body_content = else_c.else_body;
         quote! {
@@ -319,6 +381,7 @@ pub fn pythonic_for(input: TokenStream) -> TokenStream {
         quote! {}
     };
 
+    // Combine the loop logic, else block, and panic handling.
     let final_code = quote! {
         {
             let mut _break_occurred = false;
