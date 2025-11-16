@@ -155,8 +155,6 @@ pub fn transform_body(input: TokenStream) -> TokenStream {
 
 /// Custom keywords used in the `pythonic_for` macro.
 mod kw {
-    syn::custom_keyword!(in_kw);
-    syn::custom_keyword!(else_kw);
     syn::custom_keyword!(final_kw);
     syn::custom_keyword!(step);
 }
@@ -219,7 +217,7 @@ impl Parse for Iterable {
 /// Represents either `else` or `final` keyword.
 #[allow(dead_code)]
 enum ElseOrFinalKw {
-    Else(kw::else_kw),
+    Else(Token![else]),
     Final(kw::final_kw),
 }
 
@@ -235,7 +233,7 @@ struct ElseClause {
 impl Parse for ElseClause {
     /// Parses an `ElseClause` from a TokenStream.
     fn parse(input: ParseStream) -> Result<Self> {
-        let keyword = if input.peek(kw::else_kw) {
+        let keyword = if input.peek(Token![else]) {
             ElseOrFinalKw::Else(input.parse()?)
         } else if input.peek(kw::final_kw) {
             ElseOrFinalKw::Final(input.parse()?)
@@ -257,7 +255,7 @@ struct PythonicForInput {
     var: Ident,
     /// The `in` keyword.
     #[allow(dead_code)]
-    in_kw: kw::in_kw,
+    in_token: Token![in],
     /// The iterable expression.
     iterable: Iterable,
     /// The body of the loop.
@@ -281,12 +279,12 @@ impl Parse for PythonicForInput {
             _ => return Err(syn::Error::new_spanned(var_pat, "Expected a simple identifier for the loop variable (e.g., `i`). Patterns are not supported here.")),
         };
         
-        let in_kw: kw::in_kw = input.parse()?;
+        let in_token: Token![in] = input.parse()?;
         let iterable: Iterable = input.parse()?;
         let body: Block = input.parse()?;
         
         // Check for an optional `else` or `final` clause.
-        let else_clause: Option<ElseClause> = if input.peek(kw::else_kw) || input.peek(kw::final_kw) {
+        let else_clause: Option<ElseClause> = if input.peek(Token![else]) || input.peek(kw::final_kw) {
             Some(input.parse()?)
         } else {
             None
@@ -294,7 +292,7 @@ impl Parse for PythonicForInput {
 
         Ok(PythonicForInput {
             var,
-            in_kw,
+            in_token,
             iterable,
             body,
             else_clause,
@@ -316,7 +314,7 @@ pub fn pythonic_for(input: TokenStream) -> TokenStream {
     let user_body = parsed_input.body;
     
     // Create a unique label for this specific loop invocation.
-    let loop_label_str = format!("pythonic_for_loop_{}", var_ident); 
+    let loop_label_str = format!("'pythonic_for_loop_{}", var_ident); 
     let loop_label = Lifetime::new(&loop_label_str, var_ident.span());
 
 
@@ -374,14 +372,14 @@ pub fn pythonic_for(input: TokenStream) -> TokenStream {
                     // Positive step: iterate upwards.
                     #loop_label: while if #inclusive { __current <= __end } else { __current < __end } {
                         let #var_ident = __current;
-                        pythonic_for_proc_macros::transform_body!(#loop_label, { #user_body })
+                        pythonic_for_proc_macros::transform_body!(#loop_label, { #user_body });
                         __current += __step;
                     }
                 } else if __step < 0 {
                     // Negative step: iterate downwards.
                     #loop_label: while if #inclusive { __current >= __end } else { __current > __end } {
                         let #var_ident = __current;
-                        pythonic_for_proc_macros::transform_body!(#loop_label, { #user_body })
+                        pythonic_for_proc_macros::transform_body!(#loop_label, { #user_body });
                         __current += __step; 
                     }
                 }
