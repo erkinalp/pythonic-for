@@ -13,14 +13,14 @@ dependencies = [
 
 [[package]]
 name = "pythonic-for"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "pythonic-for-proc-macros",
 ]
 
 [[package]]
 name = "pythonic-for-proc-macros"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "proc-macro2",
  "quote",

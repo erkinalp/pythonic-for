@@ -3,10 +3,10 @@ This code is 100% AI-generated.
 It is out of copyright outside the Commonwealth due to the lack of legal personhood of the creator.
 */
 use proc_macro::TokenStream;
-use quote::{quote, format_ident};
+use quote::quote;
 use syn::{
-    parse_macro_input, Block, ExprBreak, visit_mut::{self, VisitMut}, Token, Ident, Expr, Result,
-    parse::{Parse, ParseStream}, RangeLimits, Pat, Lifetime, Lit, ExprLit, Error,
+    Block, visit_mut::{self, VisitMut}, Token, Ident, Expr, Result,
+    parse::{Parse, ParseStream}, RangeLimits, Pat, Lifetime,
 };
 
 /// Defines the input structure for the `transform_body` macro.
@@ -112,7 +112,7 @@ impl VisitMut for BreakTransformer {
                     Err(e) => {
                         // If parsing fails, generate a compile-time error message.
                         let error_ts = syn::Error::new_spanned(
-                            node, // Span of the original break expression node
+                            &*node, // Borrow instead of move to allow subsequent assignment
                             format!("Internal error in pythonic-for: Failed to construct break transformation: {}", e)
                         ).to_compile_error();
                         // Try to parse the compile_error! invocation itself as an Expr
@@ -157,14 +157,17 @@ pub fn transform_body(input: TokenStream) -> TokenStream {
 mod kw {
     syn::custom_keyword!(in_kw);
     syn::custom_keyword!(else_kw);
+    syn::custom_keyword!(final_kw);
     syn::custom_keyword!(step);
 }
 
 /// Represents the `step` clause in a Pythonic `for` loop.
 struct StepClause {
     /// The `step` keyword.
+    #[allow(dead_code)]
     step_kw: kw::step,
     /// The `=` token.
+    #[allow(dead_code)]
     eq_token: Token![=],
     /// The expression for the step value.
     step_expr: Expr,
@@ -190,6 +193,7 @@ enum Iterable {
         /// The range expression.
         range_expr: Expr, 
         /// The comma separating the range and the step clause.
+        #[allow(dead_code)]
         comma_token: Token![,],
         /// The step clause.
         step_clause: StepClause,
@@ -212,19 +216,35 @@ impl Parse for Iterable {
     }
 }
 
-/// Represents the `else` clause of a Pythonic `for` loop.
+/// Represents either `else` or `final` keyword.
+#[allow(dead_code)]
+enum ElseOrFinalKw {
+    Else(kw::else_kw),
+    Final(kw::final_kw),
+}
+
+/// Represents the `else` or `final` clause of a Pythonic `for` loop.
 struct ElseClause {
-    /// The `else` keyword.
-    else_kw: kw::else_kw,
-    /// The body of the `else` block.
+    /// The `else` or `final` keyword.
+    #[allow(dead_code)]
+    keyword: ElseOrFinalKw,
+    /// The body of the `else`/`final` block.
     else_body: Block,
 }
 
 impl Parse for ElseClause {
     /// Parses an `ElseClause` from a TokenStream.
     fn parse(input: ParseStream) -> Result<Self> {
+        let keyword = if input.peek(kw::else_kw) {
+            ElseOrFinalKw::Else(input.parse()?)
+        } else if input.peek(kw::final_kw) {
+            ElseOrFinalKw::Final(input.parse()?)
+        } else {
+            return Err(input.error("expected `else` or `final`"));
+        };
+        
         Ok(ElseClause {
-            else_kw: input.parse()?,
+            keyword,
             else_body: input.parse()?,
         })
     }
@@ -236,6 +256,7 @@ struct PythonicForInput {
     /// The loop variable identifier.
     var: Ident,
     /// The `in` keyword.
+    #[allow(dead_code)]
     in_kw: kw::in_kw,
     /// The iterable expression.
     iterable: Iterable,
@@ -248,7 +269,7 @@ struct PythonicForInput {
 impl Parse for PythonicForInput {
     /// Parses a `PythonicForInput` from a TokenStream.
     fn parse(input: ParseStream) -> Result<Self> {
-        let var_pat: Pat = input.parse()?;
+        let var_pat: Pat = Pat::parse_single(input)?;
         let var = match var_pat {
             Pat::Ident(pat_ident) => {
                 // Validate that the loop variable is a simple identifier.
@@ -264,8 +285,8 @@ impl Parse for PythonicForInput {
         let iterable: Iterable = input.parse()?;
         let body: Block = input.parse()?;
         
-        // Check for an optional `else` clause.
-        let else_clause: Option<ElseClause> = if input.peek(kw::else_kw) {
+        // Check for an optional `else` or `final` clause.
+        let else_clause: Option<ElseClause> = if input.peek(kw::else_kw) || input.peek(kw::final_kw) {
             Some(input.parse()?)
         } else {
             None
@@ -346,7 +367,7 @@ pub fn pythonic_for(input: TokenStream) -> TokenStream {
                 let mut __current = __start;
 
                 if __step == 0 {
-                    // TODO: Consider compile_error! or specific runtime panic for step = 0.
+                    panic!("pythonic_for: step argument must not be zero (matches Python's ValueError for range(step=0))");
                 }
 
                 if __step > 0 {

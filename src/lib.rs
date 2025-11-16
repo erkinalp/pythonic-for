@@ -307,6 +307,73 @@ mod tests {
     }
 
     #[test]
+    fn test_empty_range_else_executes() {
+        let mut else_ran = false;
+        pythonic_for!(i in 0..0 {
+            panic!("Should not iterate on empty range");
+        } else {
+            else_ran = true;
+        });
+        assert!(else_ran, "Else should execute when loop never iterates (empty range)");
+    }
+
+    #[test]
+    fn test_empty_iterator_else_executes() {
+        let empty_vec: Vec<i32> = vec![];
+        let mut else_ran = false;
+        pythonic_for!(i in empty_vec {
+            panic!("Should not iterate on empty iterator");
+        } else {
+            else_ran = true;
+        });
+        assert!(else_ran, "Else should execute when iterator is empty");
+    }
+
+    #[test]
+    #[should_panic(expected = "step argument must not be zero")]
+    fn test_step_zero_panics() {
+        pythonic_for!(i in 0..10, step = 0 {
+            // Should panic before any iteration
+        });
+    }
+
+    #[test]
+    fn test_final_keyword_works() {
+        let mut sum = 0;
+        pythonic_for!(i in 0..5 {
+            sum += i;
+        } final {
+            sum += 100;
+        });
+        assert_eq!(sum, 110);
+    }
+
+    #[test]
+    fn test_final_keyword_with_break() {
+        let mut sum = 0;
+        pythonic_for!(i in 0..5 {
+            sum += i;
+            if i == 2 {
+                break;
+            }
+        } final {
+            sum += 100;
+        });
+        assert_eq!(sum, 3);
+    }
+
+    #[test]
+    fn test_final_keyword_empty_range() {
+        let mut final_ran = false;
+        pythonic_for!(i in 5..5 {
+            panic!("Should not iterate");
+        } final {
+            final_ran = true;
+        });
+        assert!(final_ran, "Final should execute on empty range");
+    }
+
+    #[test]
     fn test_hashmap() {
         let mut map = HashMap::new();
         map.insert("one", 1);

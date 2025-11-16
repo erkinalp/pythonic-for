@@ -18,6 +18,161 @@ A Rust crate that provides Python-style `for` and `while` loops with an optional
 - **Error Handling**: Consistent panic handling for both loop types (else clause skipped).
 - **Break Statement Handling**: `break` statements within `pythonic_for!` or `pythonic_while!` bodies correctly prevent their respective `else` clauses from executing.
 
+## Semantics (Python-compatible)
+
+This crate implements Python's for-else and while-else semantics as documented in the [Python Language Reference](https://docs.python.org/3/reference/compound_stmts.html#the-for-statement):
+
+> In a `for` or `while` loop the `break` statement may be paired with an `else` clause. If the loop finishes without executing the `break`, the `else` clause executes.
+
+Specifically, the `else` (or `final`) clause executes if and only if:
+- The loop completes all iterations naturally (including zero iterations), AND
+- No `break` statement is executed, AND
+- No panic occurs in the loop body
+
+The `else` clause does NOT execute if:
+- A `break` statement is executed (including labeled breaks that exit the pythonic loop)
+- A panic occurs in the loop body
+- A `return` statement exits the enclosing function
+
+### Truth Table
+
+| Condition | Else Executes? |
+|-----------|----------------|
+| Loop completes normally (0+ iterations, no break, no panic) | ✓ Yes |
+| Loop never iterates (empty range/iterator) but no break | ✓ Yes |
+| `break` is executed | ✗ No |
+| Panic occurs in loop body | ✗ No |
+| `return` exits function | ✗ No |
+
+### Contrast with Other Languages
+
+Some languages (PHP, Jinja, Twig) have proposed or implemented "for-else" where `else` runs only if the loop **never iterated** (zero iterations). This crate does **not** follow that semantic. Our `else` clause runs whenever the loop completes without `break`, regardless of iteration count.
+
+## Alternative: Using label-break-value (RFC 2046)
+
+Rust's [RFC 2046](https://rust-lang.github.io/rfcs/2046-label-break-value.html) provides labeled blocks with break values, which can achieve similar functionality:
+
+**Using pythonic_for:**
+```rust
+use pythonic_for::pythonic_for;
+
+let mut result = -1;
+pythonic_for!(i in 0..5 {
+    if i == 3 {
+        result = i;
+        break;
+    }
+} else {
+    result = 100;
+});
+// result is 3
+```
+
+**Using label-break-value:**
+```rust
+let result = 'search: {
+    for i in 0..5 {
+        if i == 3 {
+            break 'search i;
+        }
+    }
+    100
+};
+// result is 3
+```
+
+**Tradeoffs:**
+- **pythonic_for**: More familiar to Python developers, explicit `else` keyword makes intent clear, no extra indentation
+- **label-break-value**: Native Rust feature (no macro), can return values from loops, requires extra indentation level
+
+Both approaches are valid. Use `pythonic_for` if you prefer Python-style syntax or want to avoid extra indentation. Use label-break-value if you prefer native Rust features.
+
+## Alternative Keyword: `final` instead of `else`
+
+As discussed in [RFC #3361](https://github.com/rust-lang/rfcs/issues/3361), the `else` keyword can be confusing in loop contexts because it suggests a conditional relationship that doesn't exist. This crate supports `final` as an alternative keyword that may be clearer:
+
+```rust
+use pythonic_for::pythonic_for;
+
+let mut result = -1;
+pythonic_for!(i in 0..5 {
+    if i == 3 {
+        result = i;
+        break;
+    }
+} final {
+    result = 100;  // Only runs if loop completes without break
+});
+// result is 3 (final clause did not execute due to break)
+```
+
+The `final` keyword has identical semantics to `else` - it's purely a syntactic alternative. Use whichever keyword you find more readable. The `final` keyword emphasizes that this code runs at the "final" stage after loop completion, rather than suggesting a conditional branch.
+
+## Step Value Behavior
+
+When using `step` with ranges, the step value must not be zero. This matches Python's behavior:
+
+```rust
+use pythonic_for::pythonic_for;
+
+// This will panic at runtime with a clear error message
+pythonic_for!(i in 0..10, step = 0 {
+    println!("{}", i);
+});
+// Panics: "pythonic_for: step argument must not be zero (matches Python's ValueError for range(step=0))"
+```
+
+**Python equivalent:**
+```python
+for i in range(0, 10, 0):  # Raises ValueError: range() arg 3 must not be zero
+    print(i)
+```
+
+Negative step values are fully supported for reverse iteration:
+```rust
+pythonic_for!(i in 10..0, step = -2 {
+    println!("{}", i);  // Prints: 10, 8, 6, 4, 2
+});
+```
+
+## Design Rationale and Prior Art
+
+This crate implements the for-else and while-else constructs as discussed in [Rust RFC #3361](https://github.com/rust-lang/rfcs/issues/3361). The semantics closely follow Python's implementation, which has proven useful for search patterns and conditional post-loop logic.
+
+**Common Use Case - Search Pattern:**
+```rust
+use pythonic_for::pythonic_for;
+
+let items = vec![1, 2, 3, 4, 5];
+let target = 10;
+let mut found_index = None;
+
+pythonic_for!(i in 0..items.len() {
+    if items[i] == target {
+        found_index = Some(i);
+        break;
+    }
+} else {
+    println!("Item not found in collection");
+});
+```
+
+**Prior Art:**
+- **Python**: for-else and while-else since Python 2.0 (2000)
+- **Ruby**: No direct equivalent, but similar patterns with `loop` and `break`
+- **Swift**: No direct equivalent
+- **Kotlin**: No direct equivalent
+- **Other languages**: Some template languages (Jinja2, Twig) have for-else with different semantics (else runs only on zero iterations)
+
+**Why a macro instead of language feature?**
+This implementation uses procedural macros to provide the functionality without requiring changes to the Rust language itself. This allows developers to use Python-style loop semantics today while the Rust community discusses whether to add native language support via RFC #3361.
+
+**Implementation approach:**
+- Uses AST transformation to inject a `_break_occurred` flag
+- Transforms `break` statements to set the flag before breaking
+- Wraps loop in `catch_unwind` to detect panics
+- Zero runtime overhead - all transformations happen at compile time
+
 ## Installation
 
 Add this to your `Cargo.toml`:
