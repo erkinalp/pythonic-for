@@ -880,7 +880,7 @@ mod tests {
     #[test]
     fn test_while_panic_handling_with_else() {
         let mut else_ran = false;
-        let result = std::panic::catch_unwind(|| {
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             let mut count = 0;
             pythonic_while!(count < 3; {
                 if count == 1 {
@@ -890,7 +890,7 @@ mod tests {
             } else {
                 else_ran = true;
             });
-        });
+        }));
         assert!(result.is_err());
         assert!(!else_ran, "Else clause should not run if panic occurred in body");
     }
@@ -912,7 +912,7 @@ mod tests {
     #[test]
     fn test_do_while_panic_in_first_body_with_else() {
         let mut else_ran = false;
-        let result = std::panic::catch_unwind(|| {
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             let mut count = 0;
             pythonic_while!(do {
                 if count == 0 {
@@ -923,7 +923,7 @@ mod tests {
             else {
                 else_ran = true;
             });
-        });
+        }));
         assert!(result.is_err());
         assert!(!else_ran);
     }
@@ -945,7 +945,7 @@ mod tests {
     #[test]
     fn test_do_while_panic_in_extra_body_with_else() {
         let mut else_ran = false;
-        let result = std::panic::catch_unwind(|| {
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             let mut count = 0;
              pythonic_while!(do {
                 count = 5;
@@ -954,7 +954,7 @@ mod tests {
             } else {
                 else_ran = true;
             });
-        });
+        }));
         assert!(result.is_err());
         assert!(!else_ran);
     }
@@ -1046,19 +1046,66 @@ pub fn _warn_false_condition_with_else() {
 /// ```
 #[macro_export]
 macro_rules! pythonic_while {
-    // Standard while loop with a body but no else clause
-    ($condition:expr; $body:block) => {
+    // Do-while pattern with an else clause (must come before standard patterns)
+    (do $body:block; while $condition:expr; $extra_body:block else $else_body:block) => {
         {
+            let condition_str = stringify!($condition);
+            let _false_condition_detected = $crate::is_false_condition(condition_str);
+            
+            if _false_condition_detected {
+                $crate::_warn_false_condition_with_else();
+            }
+            
             let mut _break_occurred = false;
             let __result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                'pythonic_while_loop: while $condition {
-                    $crate::_internal_pythonic_while_body!('pythonic_while_loop, { $body }); 
-                    if _break_occurred { 
+                'pythonic_while_loop: loop {
+                    pythonic_for_proc_macros::transform_body!('pythonic_while_loop, { $body });
+                    if _break_occurred {
+                        break 'pythonic_while_loop;
+                    }
+                    if !($condition) {
+                        break 'pythonic_while_loop;
+                    }
+                    pythonic_for_proc_macros::transform_body!('pythonic_while_loop, { $extra_body });
+                    if _break_occurred {
                         break 'pythonic_while_loop;
                     }
                 }
             }));
-            // If __result.is_err(), panic is caught.
+
+            if !_break_occurred && __result.is_ok() {
+                $else_body
+            }
+            
+            if let Err(panic_payload) = __result {
+                std::panic::resume_unwind(panic_payload);
+            }
+        }
+    };
+
+    // Do-while pattern without an else clause (must come before standard patterns)
+    (do $body:block; while $condition:expr; $extra_body:block) => {
+        {
+            let mut _break_occurred = false;
+            let __result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                'pythonic_while_loop: loop {
+                    pythonic_for_proc_macros::transform_body!('pythonic_while_loop, { $body });
+                    if _break_occurred {
+                        break 'pythonic_while_loop;
+                    }
+                    if !($condition) {
+                        break 'pythonic_while_loop; 
+                    }
+                    pythonic_for_proc_macros::transform_body!('pythonic_while_loop, { $extra_body }); 
+                    if _break_occurred {
+                        break 'pythonic_while_loop;
+                    }
+                }
+            }));
+            
+            if let Err(panic_payload) = __result {
+                std::panic::resume_unwind(panic_payload);
+            }
         }
     };
 
@@ -1066,7 +1113,7 @@ macro_rules! pythonic_while {
     ($condition:expr; $body:block else $else_body:block) => {
         {
             let condition_str = stringify!($condition);
-            let _false_condition_detected = $crate::is_false_condition(condition_str); // Updated call site
+            let _false_condition_detected = $crate::is_false_condition(condition_str);
             
             if _false_condition_detected {
                 $crate::_warn_false_condition_with_else();
@@ -1075,7 +1122,7 @@ macro_rules! pythonic_while {
             let mut _break_occurred = false;
             let __result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 'pythonic_while_loop: while $condition {
-                    $crate::_internal_pythonic_while_body!('pythonic_while_loop, { $body });
+                    pythonic_for_proc_macros::transform_body!('pythonic_while_loop, { $body });
                     if _break_occurred {
                         break 'pythonic_while_loop;
                     }
@@ -1085,61 +1132,28 @@ macro_rules! pythonic_while {
             if !_break_occurred && __result.is_ok() {
                 $else_body
             }
-        }
-    };
-
-    // Do-while pattern without an else clause
-    (do $body:block; while $condition:expr; $extra_body:block) => {
-        {
-            let mut _break_occurred = false;
-            let __result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                'pythonic_while_loop: loop {
-                    $crate::_internal_pythonic_while_body!('pythonic_while_loop, { $body });
-                    if _break_occurred {
-                        break 'pythonic_while_loop;
-                    }
-                    if !($condition) {
-                        break 'pythonic_while_loop; 
-                    }
-                    $crate::_internal_pythonic_while_body!('pythonic_while_loop, { $extra_body }); 
-                    if _break_occurred {
-                        break 'pythonic_while_loop;
-                    }
-                }
-            }));
-            // If __result.is_err(), panic is caught.
-        }
-    };
-
-    // Do-while pattern with an else clause
-    (do $body:block; while $condition:expr; $extra_body:block else $else_body:block) => {
-        {
-            let condition_str = stringify!($condition);
-            let _false_condition_detected = $crate::is_false_condition(condition_str); // Updated call site
             
-            if _false_condition_detected {
-                $crate::_warn_false_condition_with_else();
+            if let Err(panic_payload) = __result {
+                std::panic::resume_unwind(panic_payload);
             }
-            
+        }
+    };
+
+    // Standard while loop with a body but no else clause
+    ($condition:expr; $body:block) => {
+        {
             let mut _break_occurred = false;
             let __result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                'pythonic_while_loop: loop {
-                    $crate::_internal_pythonic_while_body!('pythonic_while_loop, { $body });
-                    if _break_occurred {
-                        break 'pythonic_while_loop;
-                    }
-                    if !($condition) {
-                        break 'pythonic_while_loop;
-                    }
-                    $crate::_internal_pythonic_while_body!('pythonic_while_loop, { $extra_body });
-                    if _break_occurred {
+                'pythonic_while_loop: while $condition {
+                    pythonic_for_proc_macros::transform_body!('pythonic_while_loop, { $body }); 
+                    if _break_occurred { 
                         break 'pythonic_while_loop;
                     }
                 }
             }));
-
-            if !_break_occurred && __result.is_ok() {
-                $else_body
+            
+            if let Err(panic_payload) = __result {
+                std::panic::resume_unwind(panic_payload);
             }
         }
     };

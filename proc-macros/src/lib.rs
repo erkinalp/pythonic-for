@@ -7,6 +7,7 @@ use quote::quote;
 use syn::{
     Block, visit_mut::{self, VisitMut}, Token, Ident, Expr, Result,
     parse::{Parse, ParseStream}, RangeLimits, Pat, Lifetime,
+    ext::IdentExt,
 };
 
 /// Defines the input structure for the `transform_body` macro.
@@ -155,7 +156,6 @@ pub fn transform_body(input: TokenStream) -> TokenStream {
 
 /// Custom keywords used in the `pythonic_for` macro.
 mod kw {
-    syn::custom_keyword!(final_kw);
     syn::custom_keyword!(step);
 }
 
@@ -201,7 +201,7 @@ enum Iterable {
 impl Parse for Iterable {
     /// Parses an `Iterable` from a TokenStream.
     fn parse(input: ParseStream) -> Result<Self> {
-        let expr: Expr = input.parse()?;
+        let expr: Expr = Expr::parse_without_eager_brace(input)?;
         if input.peek(Token![,]) && input.peek2(kw::step) {
             Ok(Iterable::RangeWithStep {
                 range_expr: expr, 
@@ -218,7 +218,7 @@ impl Parse for Iterable {
 #[allow(dead_code)]
 enum ElseOrFinalKw {
     Else(Token![else]),
-    Final(kw::final_kw),
+    Final(Ident),
 }
 
 /// Represents the `else` or `final` clause of a Pythonic `for` loop.
@@ -235,10 +235,18 @@ impl Parse for ElseClause {
     fn parse(input: ParseStream) -> Result<Self> {
         let keyword = if input.peek(Token![else]) {
             ElseOrFinalKw::Else(input.parse()?)
-        } else if input.peek(kw::final_kw) {
-            ElseOrFinalKw::Final(input.parse()?)
         } else {
-            return Err(input.error("expected `else` or `final`"));
+            let fork = input.fork();
+            if let Ok(ident) = fork.call(Ident::parse_any) {
+                if ident == "final" {
+                    let _ = input.call(Ident::parse_any)?;
+                    ElseOrFinalKw::Final(ident)
+                } else {
+                    return Err(syn::Error::new_spanned(ident, "expected `else` or `final`"));
+                }
+            } else {
+                return Err(input.error("expected `else` or `final`"));
+            }
         };
         
         Ok(ElseClause {
@@ -284,11 +292,25 @@ impl Parse for PythonicForInput {
         let body: Block = input.parse()?;
         
         // Check for an optional `else` or `final` clause.
-        let else_clause: Option<ElseClause> = if input.peek(Token![else]) || input.peek(kw::final_kw) {
+        let else_clause: Option<ElseClause> = if input.peek(Token![else]) {
             Some(input.parse()?)
         } else {
-            None
+            let fork = input.fork();
+            if let Ok(ident) = fork.call(Ident::parse_any) {
+                if ident == "final" {
+                    Some(input.parse()?)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
         };
+
+        // Ensure all tokens have been consumed
+        if !input.is_empty() {
+            return Err(input.error("unexpected tokens after pythonic_for invocation"));
+        }
 
         Ok(PythonicForInput {
             var,
@@ -409,6 +431,10 @@ pub fn pythonic_for(input: TokenStream) -> TokenStream {
             }));
             
             #else_block_logic
+            
+            if let Err(panic_payload) = __result {
+                std::panic::resume_unwind(panic_payload);
+            }
         }
     };
 
